@@ -725,12 +725,12 @@
           >
             <el-switch v-model="activeData.showTip" />
           </el-form-item>
-          <el-form-item
+          <!-- <el-form-item
             v-if="activeData.multiple !== undefined"
             label="多选文件"
           >
             <el-switch v-model="activeData.multiple" />
-          </el-form-item>
+          </el-form-item> -->
           <el-form-item
             v-if="activeData['auto-upload'] !== undefined"
             label="自动上传"

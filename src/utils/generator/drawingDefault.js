@@ -34,4 +34,30 @@ export default [
       },
     ],
   },
+  {
+    prop: 'HB_fisrtTouch',
+    vModel: 'HB_fisrtTouch',
+    layout: 'colFormItem',
+    id: '1',
+    tag: 'el-select',
+    label: '首次接触结果',
+    placeholder: '请选择首次接触结果',
+    value: '',
+    span: 24,
+    style: {
+      width: '100%',
+    },
+    options: [
+      {
+        label: '接通',
+        tag: 'el-option',
+        value: '接通',
+      },
+      {
+        label: '未接通',
+        tag: 'el-option',
+        value: '未接通',
+      },
+    ],
+  },
 ];
