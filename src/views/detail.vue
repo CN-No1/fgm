@@ -84,10 +84,9 @@
 
     <div class="center-board">
       <div class="action-bar">
-        <el-button icon="el-icon-download" type="text" @click="save">
-          保存
-        </el-button>
-        <el-button icon="el-icon-download" type="text" @click="download">
+        <el-button type="text" @click="goBack"> 返回 </el-button>
+        <el-button type="text" @click="handleSave"> 保存 </el-button>
+        <!-- <el-button icon="el-icon-download" type="text" @click="download">
           导出vue文件
         </el-button>
         <el-button
@@ -97,13 +96,8 @@
           @click="copy"
         >
           复制代码
-        </el-button>
-        <el-button
-          class="delete-btn"
-          icon="el-icon-delete"
-          type="text"
-          @click="empty"
-        >
+        </el-button> -->
+        <el-button class="delete-btn" type="text" @click="empty">
           清空
         </el-button>
       </div>
@@ -156,6 +150,21 @@
       @confirm="generate"
     />
     <input id="copyNode" type="hidden" />
+
+    <el-dialog title="保存模板" :visible.sync="showSave">
+      <el-form>
+        <el-form-item label="模板名称">
+          <el-input v-model="templateName"></el-input>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="remark"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="showSave = false">取 消</el-button>
+        <el-button type="primary" @click="save">确 定</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -183,6 +192,7 @@ import { makeUpCss } from '@/utils/generator/css';
 import drawingDefault from '@/utils/generator/drawingDefault';
 import CodeTypeDialog from './CodeTypeDialog';
 import DraggableItem from './DraggableItem';
+import https from '../utils/http';
 
 let oldActiveId;
 let tempActiveData;
@@ -205,13 +215,16 @@ export default {
       labelWidth: 100,
       drawingList: drawingDefault,
       drawingData: {},
-      activeId: drawingDefault[0].formId,
+      activeId: '',
       drawerVisible: false,
       formData: {},
       dialogVisible: false,
       generateConf: null,
       showFileName: false,
-      activeData: drawingDefault[0],
+      activeData: {},
+      showSave: false,
+      templateName: '',
+      remark: '',
     };
   },
   created() {
@@ -256,10 +269,93 @@ export default {
     clipboard.on('error', (e) => {
       this.$message.error('代码复制失败');
     });
+    let temp = JSON.parse(this.$route.params.templateDetail);
+    let res = [];
+    temp.map((item) => {
+      res.push(this.fromModuleToDragItem(item));
+    });
+    this.drawingList = res;
+    this.activeId = this.drawingList[0].formId;
+    this.activeData = this.drawingList[0];
+    this.templateName = this.$route.params.templateName;
+    this.remark = this.$route.params.remark;
   },
   methods: {
+    handleSave() {
+      this.showSave = true;
+    },
+    goBack() {
+      this.$router.go(-1);
+    },
     save() {
-      console.log(this.drawingList);
+      let app = [];
+      let pc = [];
+      this.drawingList.map((item) => {
+        pc.push(this.fromDragItemToModule(item));
+        app.push(this.fromPcToApp(item));
+      });
+      const params = {
+        appTemplateDetail: JSON.stringify(app),
+        templateDetail: JSON.stringify(pc),
+        templateName: this.templateName,
+        remark: this.remark,
+        id: this.$route.params.id || '',
+      };
+      https.post('/api/orderHandle/updateTemplate', params).then(({ data }) => {
+        if (data.resultCode == 1) {
+          this.showSave = false;
+          this.goBack();
+        }
+      });
+    },
+    fromPcToApp(obj) {
+      let temp = Object.assign({}, obj);
+      let tags = {
+        'el-select': 'picker',
+        'el-date-picker': 'date',
+        'el-input': 'input',
+      };
+      temp.tag = tags[obj.tag];
+      if (temp.tag == 'input' && temp.type == 'textarea') {
+        temp.tag = 'textareaItem';
+      }
+      if (temp.tag == 'picker' && temp.multiple == true) {
+        temp.tag = 'selector';
+      }
+      return temp;
+    },
+    fromDragItemToModule(obj) {
+      let temp = Object.assign({}, obj);
+      if (temp.method) {
+        temp.optionReq = {};
+        temp.optionReq.method = temp.method;
+        temp.optionReq.url = temp.url;
+        temp.params.map((item) => {
+          temp.optionReq.params[item.key] = item.value;
+        });
+      }
+      temp.option = temp.options;
+      temp.id = temp.formId ? temp.formId.toString() : temp.id.toString();
+      return temp;
+    },
+    fromModuleToDragItem(obj) {
+      let temp = Object.assign({}, obj);
+      temp.id = temp.formId ? temp.formId.toString() : temp.id.toString();
+      temp.formId = temp.id;
+      temp.options = temp.options ? temp.options : obj.option;
+      temp.layout = temp.layout ? temp.layout : 'colFormItem';
+      if (temp.optionReq) {
+        temp.params = [];
+        Object.keys(temp.optionReq.params).map((key) => {
+          temp.params.push({
+            key: key,
+            value: temp.optionReq.params[key],
+          });
+        });
+        temp.method = temp.optionReq.method;
+        temp.url = temp.optionReq.url;
+      }
+      return temp;
     },
     activeFormItem(element) {
       if (!element.params) {
